@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LLM Fusion Studio</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">⚡ LLM Fusion Studio</div>
+    <div class="topbar-right">
+      <span id="gpu-name" class="muted">GPU: 감지 중…</span>
+      <span id="app-status" class="status-badge idle">IDLE</span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- 좌측: Model Library -->
+    <aside class="panel left">
+      <h2 class="panel-title">Model Library</h2>
+
+      <label class="field">
+        <span>HuggingFace Token</span>
+        <input id="hf-token" type="password" placeholder="hf_xxx..." autocomplete="off" />
+      </label>
+
+      <label class="field">
+        <span>로컬 모델 디렉토리</span>
+        <div class="row">
+          <input id="model-dir" type="text" placeholder="backend/models" readonly />
+          <button id="btn-pick-dir" class="btn sm">변경</button>
+        </div>
+      </label>
+
+      <div class="model-list-wrap">
+        <div class="list-header">Base Models (Qwen 우선)</div>
+        <ul id="model-list" class="model-list">
+          <li class="muted">디렉토리를 선택하세요</li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- 중앙: Merge Canvas -->
+    <section class="panel center">
+      <h2 class="panel-title">Merge Canvas</h2>
+
+      <div id="dropzone" class="dropzone">
+        <p>모델을 좌측에서 드래그하여 여기에 놓으세요</p>
+        <ul id="merge-stack" class="merge-stack"></ul>
+      </div>
+
+      <div id="sliders" class="sliders">
+        <!-- 슬라이더는 JS가 동적으로 생성 -->
+      </div>
+
+      <div class="grid2">
+        <label class="field">
+          <span>GGUF 양자화 옵션</span>
+          <select id="quant">
+            <option value="q4_k_m">Q4_K_M (권장)</option>
+            <option value="q5_k_m">Q5_K_M</option>
+            <option value="q6_k">Q6_K</option>
+            <option value="q8_0">Q8_0</option>
+            <option value="f16">F16 (비양자화)</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>결과 저장소 이름</span>
+          <input id="repo-name" type="text" placeholder="teriro/my-fusion-v1" />
+        </label>
+      </div>
+
+      <div class="actions">
+        <button id="btn-merge" class="btn primary" disabled>Merge & Push</button>
+        <button id="btn-cancel" class="btn ghost" disabled>취소</button>
+      </div>
+    </section>
+
+    <!-- 우측: Status & Terminal -->
+    <aside class="panel right">
+      <h2 class="panel-title">Status & Terminal</h2>
+
+      <div class="vram-block">
+        <div class="vram-head">
+          <span>VRAM</span>
+          <span id="vram-text" class="muted">0 / 8192 MB</span>
+        </div>
+        <div class="vram-bar">
+          <div id="vram-fill" class="vram-fill"></div>
+        </div>
+        <div class="muted small">기준: RTX 3070 Ti (8 GB)</div>
+      </div>
+
+      <div class="terminal-wrap">
+        <div class="terminal-head">실시간 로그</div>
+        <pre id="terminal" class="terminal"></pre>
+      </div>
+    </aside>
+  </main>
+
+  <!-- 토스트 -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

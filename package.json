@@ -1,0 +1,31 @@
+{
+  "name": "llm-fusion-studio",
+  "version": "0.1.0",
+  "description": "GUI for AI model merge, GGUF quantization, and HuggingFace upload (Qwen-first)",
+  "author": "",
+  "license": "MIT",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win"
+  },
+  "dependencies": {
+    "systeminformation": "^5.22.0"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.localfusion.llmfusionstudio",
+    "productName": "LLM Fusion Studio",
+    "files": [
+      "electron/**/*",
+      "src/**/*",
+      "backend/requirements.txt"
+    ],
+    "win": { "target": "nsis" }
+  }
+}
