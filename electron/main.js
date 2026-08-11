@@ -101,9 +101,22 @@ async function startVramMonitor() {
   try {
     const g = await si.graphics();
     const nvidia = g.controllers.find((c) => /nvidia/i.test(c.vendor));
-    const name = nvidia ? `${nvidia.model} (8GB)` : (g.controllers[0] && g.controllers[0].model) || 'Unknown GPU';
+    const ctrl = nvidia || g.controllers[0];
+    // VRAM 총량: vram 단위는 MB. 일부 환경에선 vramDynamic 에만 있음.
+    let totalMB = 8192;
+    if (ctrl) {
+      const v = (typeof ctrl.vram === 'number' && ctrl.vram > 0) ? ctrl.vram
+              : (typeof ctrl.vramDynamic === 'number' && ctrl.vramDynamic > 0) ? ctrl.vramDynamic
+              : 8192;
+      totalMB = v;
+    }
+    const name = ctrl ? `${ctrl.model || 'Unknown GPU'}` : 'Unknown GPU';
     win.webContents.send('fusion:gpu', name);
-  } catch (e) { win.webContents.send('fusion:gpu', 'GPU 정보 없음'); }
+    win.webContents.send('fusion:vram-limit', totalMB);
+  } catch (e) {
+    win.webContents.send('fusion:gpu', 'GPU 정보 없음');
+    win.webContents.send('fusion:vram-limit', 8192);
+  }
 
   // 정기 폴링 — nvidia-smi 우선, 없으면 systeminformation RAM 폴백
   vramTimer = setInterval(async () => {

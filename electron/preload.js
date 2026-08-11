@@ -22,5 +22,6 @@ contextBridge.exposeInMainWorld('eapi', {
   // 스트림 이벤트
   onLog:   (cb) => ipcRenderer.on('fusion:log',   (_e, line, cls)   => cb(line, cls)),
   onVram:  (cb) => ipcRenderer.on('fusion:vram', (_e, usedMB)      => cb(usedMB)),
+  onVramLimit: (cb) => ipcRenderer.on('fusion:vram-limit', (_e, totalMB) => cb(totalMB)),
   onGpuName: (cb) => ipcRenderer.on('fusion:gpu', (_e, name)         => cb && cb(name)),
 });

@@ -8,6 +8,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
+    "doctor": "node electron/doctor.js",
     "build": "electron-builder",
     "build:win": "electron-builder --win"
   },

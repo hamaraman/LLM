@@ -34,7 +34,11 @@ function logLine(text, cls = '') {
 }
 
 // ---------- VRAM 게이지 ----------
-const VRAM_LIMIT_MB = 8192; // RTX 3070 Ti = 8GB
+let VRAM_LIMIT_MB = 8192; // 기본값: RTX 3070 Ti (8GB), GPU 정보 수신 시 자동 갱신
+function setVramLimit(mb) {
+  VRAM_LIMIT_MB = mb || VRAM_LIMIT_MB;
+  document.querySelectorAll('.vram-limit-text').forEach((el) => el.textContent = `기준: ${Math.round(VRAM_LIMIT_MB / 1024)} GB`);
+}
 function updateVram(usedMB) {
   const pct = Math.min(100, (usedMB / VRAM_LIMIT_MB) * 100);
   const fill = $('vram-fill');
@@ -42,7 +46,7 @@ function updateVram(usedMB) {
   fill.className = 'vram-fill';
   if (pct >= 100) fill.classList.add('alert');
   else if (pct >= 80) fill.classList.add('warn');
-  $('vram-text').textContent = `${Math.round(usedMB)} / ${VRAM_LIMIT_MB} MB`;
+  $('vram-text').textContent = `${Math.round(usedMB)} / ${Math.round(VRAM_LIMIT_MB)} MB`;
 }
 
 // ---------- 모델 리스트 ----------
@@ -226,6 +230,7 @@ $('sliders').addEventListener('input', (e) => {
 // ---------- 백엔드 → 렌더러 스트림 (preload가 노출) ----------
 window.eapi.onLog((line, cls) => logLine(line, cls || ''));
 window.eapi.onVram((usedMB) => updateVram(usedMB));
+window.eapi.onVramLimit && window.eapi.onVramLimit((totalMB) => setVramLimit(totalMB));
 window.eapi.onGpuName && window.eapi.onGpuName((name) => {
   $('gpu-name').textContent = 'GPU: ' + name;
 });

@@ -66,17 +66,46 @@ def run_mergekit(yaml_path, out_dir):
     return _stream_subprocess(cmd, step="merge")
 
 
-def run_quantize(q, base_model_path, out_basename):
-    """base_dir 내 pytorch_model.bin/safetensors 를 GGUF로 변환.
-    llama.cpp 의 quantize 바이너리는 GGUF 입력을 받으므로,
-    실제 프로덕션에선 convert_hf_to_gguf.py 를 먼저 거쳐야 한다.
-    여기서는 인터페이스만 제공한다."""
-    out_log("GGUF 변환 단계 (llama.cpp convert) — 인터페이스만 구현됨")
-    # NOTE: 실제 환경에서는 아래 순서로 호출:
-    #   python convert_hf_to_gguf.py <merged_dir> --outtype f16 --outfile <merged>.gguf
-    #   <quantize_bin> <merged>.gguf <out>.gguf <quant_type>
-    # 현재는 스킵하고 더미 경로 반환 (TODO)
-    return None
+# llama.cpp 변환스크립트/quantize 실행파일 경로 (명령행에서 --quantize-bin 으로 받음)
+QUANTIZE_BIN = "quantize"
+CONVERT_SCRIPT = ""  # 예: /path/to/llama.cpp/convert_hf_to_gguf.py
+
+
+def run_quantize(q, merged_dir, out_basename, out_dir):
+    """두 단계 양자화 파이프라인:
+      (1) convert_hf_to_gguf.py  — HuggingFace 체크포인트(mergekit 출력) → f16 GGUF
+      (2) <quantize_bin>          — f16 GGUF → 요청한 양자화(Q4_K_M 등) GGUF
+    인자:
+      q            : 양자화 타입 (예: q4_k_m / q5_k_m / f16)
+      merged_dir   : mergekit 가 출력한 HF 포맷 모델 디렉토리 (config.json 등 있음)
+      out_basename : 결과 GGUF 파일의 기본 이름
+      out_dir      : 결과 GGUF 파일을 저장할 디렉토리
+    리턴: 최종 GGUF 파일의 절대경로 (실패 시 None)
+    """
+    # 1단계: HF → f16 GGUF
+    f16_gguf = os.path.join(str(out_dir), f"{out_basename}.f16.gguf")
+    if not CONVERT_SCRIPT:
+        out_error("convert_hf_to_gguf.py 경로가 설정되지 않음 --quantize-bin 또는 환경변수 LLAMA_CONVERT 확인")
+    if os.path.exists(f16_gguf):
+        out_log(f"1단계 스킵(이미 존재): {f16_gguf}")
+    else:
+        cmd1 = ["python", str(CONVERT_SCRIPT), str(merged_dir), "--outtype", "f16", "--outfile", f16_gguf]
+        try:
+            _stream_subprocess(cmd1, step="convert_gguf")
+        except SystemExit:
+            return None
+
+    # 2단계: f16 GGUF → 요청한 양자화 타입
+    quant_gguf = os.path.join(str(out_dir), f"{out_basename}.{q}.gguf")
+    if q == "f16":
+        out_log("양자화 타입=f16 → 2단계 건너뜀, f16 GGUF를 결과로 사용")
+        return f16_gguf
+    cmd2 = [QUANTIZE_BIN, f16_gguf, quant_gguf, q]
+    try:
+        _stream_subprocess(cmd2, step=f"quantize_{q}")
+    except SystemExit:
+        return None
+    return quant_gguf
 
 
 def push_to_hub(file_path, repo_id, token):
@@ -108,10 +137,16 @@ def _stream_subprocess(cmd, step="step"):
 
 # ---- 메인 ----
 def main():
+    global QUANTIZE_BIN, CONVERT_SCRIPT
     ap = argparse.ArgumentParser()
     ap.add_argument("--json", required=True, help="JSON payload (Sync)")
-    ap.add_argument("--quantize-bin", default="quantize")
+    ap.add_argument("--quantize-bin", default=os.environ.get("LLAMA_QUANTIZE", "quantize"),
+                    help="llama.cpp quantize 실행파일 경로")
+    ap.add_argument("--convert-script", default=os.environ.get("LLAMA_CONVERT", ""),
+                    help="llama.cpp convert_hf_to_gguf.py 경로")
     args = ap.parse_args()
+    QUANTIZE_BIN = args.quantize_bin
+    CONVERT_SCRIPT = args.convert_script
 
     try:
         payload = json.loads(args.json)
@@ -141,28 +176,39 @@ def main():
     except Exception as e:
         out_error(f"mergekit 오류: {e}")
 
-    # 3) 양자화 (있으면)
+    # 3) 양자화 (있으면) — HF 포맷 mergekit 출력을 GGUF로 변환
     quant = payload.get("quant", "f16")
-    gguf_path = merged_dir / "model.gguf"
-    if quant and quant != "f16":
-        run_quantize(quant, merged_dir, "model")
+    gguf_dir = work / "gguf"
+    gguf_dir.mkdir(parents=True, exist_ok=True)
+    final_target = None  # 업로드 대상(파일 또는 디렉토리)
+    if quant:
+        base_name = "model"
+        try:
+            final_target = run_quantize(quant, merged_dir, base_name, gguf_dir)
+        except SystemExit:
+            raise
+        except Exception as e:
+            out_error(f"양자화 오류: {e}")
+    # convert 스크립트 없거나 양자화 안 함 → HF 디렉토리 그대로 업로드 폴백
+    if not final_target:
+        out_log("GGUF 변환 스킵 — mergekit HF 출력 디렉토리를 그대로 업로드")
+        final_target = merged_dir
 
-    # 4) 업로드 (파일 존재 시)
+    # 4) 업로드 (파일 또는 디렉토리)
     repo = payload.get("repo")
     token = payload.get("hfToken")
-    upload_target = gguf_path if gguf_path.exists() else merged_dir
     if repo and token:
-        if upload_target.is_dir():
+        if isinstance(final_target, (str, os.PathLike)) and os.path.isdir(str(final_target)):
             try:
                 from huggingface_hub import HfApi, create_repo
                 api = HfApi(token=token)
                 create_repo(repo, token=token, exist_ok=True, repo_type="model", private=True)
-                api.upload_folder(folder_path=str(upload_target), repo_id=repo, token=token)
+                api.upload_folder(folder_path=str(final_target), repo_id=repo, token=token)
                 out_log(f"폴더 업로드 완료 → {repo}")
             except Exception as e:
                 out_error(f"폴더 업로드 실패: {e}")
-        else:
-            push_to_hub(upload_target, repo, token)
+        elif final_target:
+            push_to_hub(final_target, repo, token)
     else:
         out_log("HF 토큰/레포 없음 — 업로드 스킵")
 
