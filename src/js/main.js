@@ -215,3 +215,120 @@ window.eapi.getDefaultModelsDir().then((dir) => {
   refreshModels();
 });
 logLine('LLM Fusion Studio ready.');
+
+// ============ 온보딩 / 도움말 ============
+
+// 도움말 텍스트 (data-help 키별)
+const HELP_TEXT = {
+  library: {
+    title: 'Model Library (①재료 고르기)',
+    body: '합칠 AI 모델들이 있는 폴더입니다. <b>HuggingFace 토큰</b>은 결과물을 업로드할 때 필요한 "열쇠"예요. 모델 목록은 자동으로 스캔되며, <b>Qwen</b> 계열이 위에 표시돼요.',
+    tip: '처음엔 backend/models 폴더에 모델 파일(.safetensors 등)을 넣어두면 됩니다.',
+  },
+  merge: {
+    title: 'Merge Canvas (②비율 정하기)',
+    body: '왼쪽에서 모델을 끌어다 놓고, 각 모델이 결과에 얼마나 영향을 줄지 <b>슬라이더</b>로 정합니다. <b>양자화(GGUF)</b>는 모델 크기를 줄이는 작업, <b>저장소 이름</b>은 업로드될 주소(예: 내아이디/모델이름)예요.',
+    tip: '비율 합이 100%가 안 되어도 자동으로 정규화됩니다.',
+  },
+  status: {
+    title: 'Status & Terminal (③진행 상황)',
+    body: '<b>VRAM</b>은 그래픽 카드 메모리 사용량. 작업이 무거우면 빨간색으로 바뀌며 위험 경고. 아래 <b>터미널</b>은 백그라운드에서 돌아가는 작업 로그가 실시간으로 표시돼요.',
+    tip: 'RTX 3070 Ti(8GB) 기준. 작업 전 다른 무거운 앱은 끄는 게 안전해요.',
+  },
+  quant:     '양자화: 4비트/5비트 등으로 모델을 압축하는 작업. <b>Q4_K_M</b>이 크기/성능 균형이 좋아 추천.',
+  repo:      'HuggingFace 저장소 주소. 형식: <b>아이디/모델이름</b> (예: teriro/my-fusion-v1). 이미 있으면 그곳에, 없으면 새로 만들어집니다.',
+  hftoken:   'HuggingFace API 토큰. <b>write 권한</b>이 있어야 업로드 가능. Settings → Access Tokens에서 발급.',
+  dropzone:  '여기에 모델을 끌어다 놓으세요. <b>최소 2개</b>를 올려야 병합할 수 있어요.',
+  slider:    '각 모델의 <b>비율</b>. 높을수록 그 모델의 특성이 결과에 더 강하게 반영돼요.',
+};
+
+// 풍선 표시
+const bubble = $('bubble');
+let bubbleTimer = null;
+function showBubble(target, key) {
+  const data = HELP_TEXT[key];
+  if (!data) return;
+  const rect = target.getBoundingClientRect();
+  bubble.innerHTML = data.title
+    ? `<b>${data.title}</b><br>${data.body}${data.tip ? '<div class=\"tip\">💡 ' + data.tip + '</div>' : ''}`
+    : data;
+  bubble.classList.remove('hidden');
+  // 위치: 타겟 오른쪽 아래, 화면 밖이면 왼쪽으로
+  let left = rect.left + rect.width + 8;
+  let top = rect.top;
+  bubble.style.left = left + 'px';
+  bubble.style.top = top + 'px';
+  if (left + 270 > window.innerWidth) bubble.style.left = (rect.left - 270) + 'px';
+  if (top + 100 > window.innerHeight) bubble.style.top = (window.innerHeight - 120) + 'px';
+  if (bubbleTimer) clearTimeout(bubbleTimer);
+  bubbleTimer = setTimeout(hideBubble, 6000);
+}
+function hideBubble() { bubble.classList.add('hidden'); }
+
+// ? 버튼
+document.querySelectorAll('.help-btn').forEach((b) => {
+  b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (bubble.dataset.open === b.dataset.help) { hideBubble(); bubble.dataset.open = ''; return; }
+    bubble.dataset.open = b.dataset.help;
+    showBubble(b, b.dataset.help);
+  });
+});
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.help-btn') && !e.target.closest('#bubble')) hideBubble();
+});
+
+// 용어 tooltip (HTML 안의 .term 요소에 자동 적용)
+function attachTermTooltips() {
+  document.querySelectorAll('.term').forEach((t) => {
+    const key = t.dataset.term;
+    if (!t._bound) {
+      t.addEventListener('mouseenter', () => showBubble(t, key));
+      t.addEventListener('mouseleave', hideBubble);
+      t._bound = true;
+    }
+  });
+}
+
+// 환영 오버레이
+const DONT_SHOW_KEY = 'llmfs_dont_show_welcome';
+const MODE_KEY = 'llmfs_mode';
+function shouldShowWelcome() {
+  // Electron 환경에서는 localStorage 대신 설정 파일. 지금은 localStorage 시도.
+  try { return localStorage.getItem(DONT_SHOW_KEY) !== '1'; }
+  catch (e) { return true; }
+}
+function setMode(mode) {
+  document.body.classList.toggle('beginner', mode === 'beginner');
+  try { localStorage.setItem(MODE_KEY, mode); } catch (e) {}
+  if (mode === 'beginner') {
+    toast('초보자 모드 — 각 패널 번호(①②③)를 따라 진행하세요', 'ok');
+  } else {
+    toast('전문가 모드', 'ok');
+  }
+}
+function showWelcome() {
+  const w = $('welcome');
+  if (!shouldShowWelcome()) { return; }
+  w.classList.remove('hidden');
+}
+$('welcome-beginner').addEventListener('click', () => {
+  $('welcome').classList.add('hidden');
+  setMode('beginner');
+});
+$('welcome-expert').addEventListener('click', () => {
+  $('welcome').classList.add('hidden');
+  setMode('expert');
+});
+$('welcome-dont-show') && $('welcome-dont-show').addEventListener('change', (e) => {
+  try { localStorage.setItem(DONT_SHOW_KEY, e.target.checked ? '1' : '0'); } catch (er) {}
+});
+
+// 부팅 시
+(function bootOnboarding() {
+  let mode = 'expert';
+  try { mode = localStorage.getItem(MODE_KEY) || 'expert'; } catch (e) {}
+  document.body.classList.toggle('beginner', mode === 'beginner');
+  showWelcome();
+  attachTermTooltips();
+})();

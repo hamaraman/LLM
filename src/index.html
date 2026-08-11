@@ -18,7 +18,8 @@
   <main class="layout">
     <!-- 좌측: Model Library -->
     <aside class="panel left">
-      <h2 class="panel-title">Model Library</h2>
+      <span class="step-badge">1</span>
+      <h2 class="panel-title">Model Library <button class="help-btn" data-help="library" title="?">?</button></h2>
 
       <label class="field">
         <span>HuggingFace Token</span>
@@ -43,7 +44,8 @@
 
     <!-- 중앙: Merge Canvas -->
     <section class="panel center">
-      <h2 class="panel-title">Merge Canvas</h2>
+      <span class="step-badge">2</span>
+      <h2 class="panel-title">Merge Canvas <button class="help-btn" data-help="merge" title="?">?</button></h2>
 
       <div id="dropzone" class="dropzone">
         <p>모델을 좌측에서 드래그하여 여기에 놓으세요</p>
@@ -80,7 +82,8 @@
 
     <!-- 우측: Status & Terminal -->
     <aside class="panel right">
-      <h2 class="panel-title">Status & Terminal</h2>
+      <span class="step-badge">3</span>
+      <h2 class="panel-title">Status & Terminal <button class="help-btn" data-help="status" title="?">?</button></h2>
 
       <div class="vram-block">
         <div class="vram-head">
@@ -100,9 +103,30 @@
     </aside>
   </main>
 
+
+<!-- 환영 오버레이: 첫 실행 시 노출 -->
+<div id="welcome" class="welcome hidden">
+  <div class="welcome-card">
+    <h1>⚡ LLM Fusion Studio에 오신 걸 환영합니다</h1>
+    <p class="welcome-sub">이 앱은 서로 다른 AI 모델을 <b>하나로 합치고(병합)</b>, 크기를 줄여서(<b>양자화</b>), 누구나 쓸 수 있게 <b>HuggingFace에 올리는</b> 작업을 마우스 몇 번으로 끝내줍니다.</p>
+    <ol class="welcome-steps">
+      <li><span class="step-num">①</span> <b>왼쪽</b>: 합칠 재료가 될 AI 모델(기본 모델)을 고릅니다.</li>
+      <li><span class="step-num">②</span> <b>가운데</b>: 모델들을 끌어다 놓고, 비율을 정합니다.</li>
+      <li><span class="step-num">③</span> <b>오른쪽</b>: 작업 중 그래픽 카드(VRAM) 사용량과 실행 로그를 확인합니다.</li>
+    </ol>
+    <p class="welcome-tip">처음이세요? <b>초보자 모드</b>로 시작하면 각 단계마다 설명을 봅니다.</p>
+    <div class="welcome-btns">
+      <button id="welcome-beginner" class="btn primary">초보자 모드로 시작 (추천)</button>
+      <button id="welcome-expert" class="btn ghost">아는 사람이에요 · 전문가 모드</button>
+    </div>
+    <label class="welcome-skip"><input type="checkbox" id="welcome-dont-show" /> 다음부터 이 화면 안 보기</label>
+  </div>
+</div>
+
   <!-- 토스트 -->
   <div id="toast" class="toast hidden"></div>
 
+  <div id="bubble" class="bubble hidden"></div>
   <script src="js/main.js"></script>
 </body>
 </html>
