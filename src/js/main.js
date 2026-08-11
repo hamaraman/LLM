@@ -267,6 +267,7 @@ const HELP_TEXT = {
   hftoken:   'HuggingFace API 토큰. <b>write 권한</b>이 있어야 업로드 가능. Settings → Access Tokens에서 발급.',
   dropzone:  '여기에 모델을 끌어다 놓으세요. <b>최소 2개</b>를 올려야 병합할 수 있어요.',
   slider:    '각 모델의 <b>비율</b>. 높을수록 그 모델의 특성이 결과에 더 강하게 반영돼요.',
+  vram:      '<b>VRAM</b>은 그래픽 카드(RAM 대신 GPU)의 작업용 메모리. 모델이 클수록 많이 쓰고, 용량을 넘기면 작업이 멈추거나 매우 느려져요.',
 };
 
 // 풍선 표시

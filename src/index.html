@@ -22,8 +22,8 @@
       <h2 class="panel-title">Model Library <button class="help-btn" data-help="library" title="?">?</button></h2>
 
       <label class="field">
-        <span><span class="term" data-term="hftoken">HuggingFace Token</span></span>
-        <input id="hf-token" type="password" placeholder="hf_xxx..." autocomplete="off" />
+        <span><span class="term" data-term="hftoken">HuggingFace API 토큰</span> <span class="muted small">(결과물 업로드용 · write 권한)</span></span>
+        <input id="hf-token" type="password" placeholder="huggingface.co/settings/tokens 에서 발급 (hf_xxx...)" autocomplete="off" />
       </label>
 
       <label class="field">
@@ -35,7 +35,7 @@
       </label>
 
       <div class="model-list-wrap">
-        <div class="list-header">Base Models (Qwen 우선)</div>
+        <div class="list-header">기본 모델 (Qwen 우선)</div>
         <ul id="model-list" class="model-list">
           <li class="muted">디렉토리를 선택하세요</li>
         </ul>
@@ -75,7 +75,7 @@
       </div>
 
       <div class="actions">
-        <button id="btn-merge" class="btn primary" disabled>Merge & Push</button>
+        <button id="btn-merge" class="btn primary" disabled>병합 & 업로드</button>
         <button id="btn-cancel" class="btn ghost" disabled>취소</button>
       </div>
     </section>
@@ -87,7 +87,7 @@
 
       <div class="vram-block">
         <div class="vram-head">
-          <span>VRAM</span>
+          <span><span class="term" data-term="vram">VRAM</span> 사용량</span>
           <span id="vram-text" class="muted">0 / 8192 MB</span>
         </div>
         <div class="vram-bar">
