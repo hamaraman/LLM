@@ -12,6 +12,13 @@ contextBridge.exposeInMainWorld('eapi', {
   startMerge:          (payload)     => ipcRenderer.invoke('start-merge', payload),
   cancelMerge:         ()            => ipcRenderer.send('cancel-merge'),
 
+  // 설정 파일 (localStorage 대신)
+  getSettings: ()        => ipcRenderer.invoke('settings:get'),
+  saveSettings: (obj)    => ipcRenderer.invoke('settings:save', obj),
+
+  // VRAM 쿼리 (nvidia-smi)
+  queryVram: ()          => ipcRenderer.invoke('vram:query'),
+
   // 스트림 이벤트
   onLog:   (cb) => ipcRenderer.on('fusion:log',   (_e, line, cls)   => cb(line, cls)),
   onVram:  (cb) => ipcRenderer.on('fusion:vram', (_e, usedMB)      => cb(usedMB)),

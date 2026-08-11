@@ -8,6 +8,8 @@ const state = {
   running: false,
 };
 
+const confirmDialog = $('confirm-dialog');
+
 // ---------- 토스트 ----------
 function toast(msg, kind = 'ok') {
   const t = $('toast');
@@ -84,12 +86,13 @@ function renderSliders() {
     const div = document.createElement('div');
     div.className = 'slider-item';
     div.innerHTML = `
-      <div class="label"><span>${item.name}</span><span class="pct" data-i="${i}">--</span></div>
+      <div class="label"><span>${item.name} <span class="term" data-term="slider">비율</span></span><span class="pct" data-i="${i}">--</span></div>
       <input type="range" min="0" max="100" value="${Math.round(100 / state.stack.length)}" data-i="${i}" />
     `;
     wrap.appendChild(div);
   });
   updateSliderLabels();
+  attachTermTooltips();
 }
 
 function updateSliderLabels() {
@@ -158,18 +161,22 @@ $('btn-pick-dir').addEventListener('click', async () => {
   }
 });
 
-$('btn-merge').addEventListener('click', async () => {
-  if (state.running) return;
+// 병합 payload 빌더
+function buildMergePayload() {
   const inputs = document.querySelectorAll('#sliders input[type=range]');
   const ratios = Array.from(inputs).map((i) => Number(i.value));
   const sum = ratios.reduce((a, b) => a + b, 0) || 1;
-  const payload = {
+  return {
     models: state.stack.map((m, i) => ({ name: m.name, path: m.path, ratio: ratios[i] / sum })),
     quant: $('quant').value,
     repo: $('repo-name').value.trim(),
     hfToken: $('hf-token').value.trim(),
     modelsDir: state.modelsDir,
   };
+}
+
+// 실제 병합 실행 (확인 다이얼로그 "실행하기" 눌렀을 때)
+async function runMergeReal(payload) {
   state.running = true;
   $('btn-merge').disabled = true;
   $('btn-cancel').disabled = false;
@@ -188,6 +195,21 @@ $('btn-merge').addEventListener('click', async () => {
     updateMergeButton();
     setStatus('idle', 'IDLE');
   }
+}
+
+// btn-merge: 확인 다이얼로그 띄우기
+$('btn-merge').addEventListener('click', () => {
+  if (state.running) return;
+  const payload = buildMergePayload();
+  $('confirm-summary').innerHTML = showConfirmSummary(payload);
+  confirmDialog.classList.remove('hidden');
+});
+
+// 확인 다이얼로그 실행 버튼
+$('confirm-ok').addEventListener('click', async () => {
+  const payload = buildMergePayload();
+  confirmDialog.classList.add('hidden');
+  await runMergeReal(payload);
 });
 
 $('btn-cancel').addEventListener('click', () => window.eapi.cancelMerge());
@@ -293,14 +315,25 @@ function attachTermTooltips() {
 // 환영 오버레이
 const DONT_SHOW_KEY = 'llmfs_dont_show_welcome';
 const MODE_KEY = 'llmfs_mode';
+let __settings = null;
+async function loadSettingsAsync() {
+  if (__settings !== null) return __settings;
+  try { __settings = await window.eapi.getSettings(); } catch (e) { __settings = {}; }
+  if (!__settings) __settings = {};
+  return __settings;
+}
+async function saveSettingsAsync(patch) {
+  const cur = await loadSettingsAsync();
+  __settings = Object.assign({}, cur, patch);
+  try { await window.eapi.saveSettings(__settings); } catch (e) {}
+  return __settings;
+}
 function shouldShowWelcome() {
-  // Electron 환경에서는 localStorage 대신 설정 파일. 지금은 localStorage 시도.
-  try { return localStorage.getItem(DONT_SHOW_KEY) !== '1'; }
-  catch (e) { return true; }
+  return !__settings || __settings.dontShowWelcome !== true;
 }
 function setMode(mode) {
   document.body.classList.toggle('beginner', mode === 'beginner');
-  try { localStorage.setItem(MODE_KEY, mode); } catch (e) {}
+  saveSettingsAsync({ mode });
   if (mode === 'beginner') {
     toast('초보자 모드 — 각 패널 번호(①②③)를 따라 진행하세요', 'ok');
   } else {
@@ -320,15 +353,35 @@ $('welcome-expert').addEventListener('click', () => {
   $('welcome').classList.add('hidden');
   setMode('expert');
 });
-$('welcome-dont-show') && $('welcome-dont-show').addEventListener('change', (e) => {
-  try { localStorage.setItem(DONT_SHOW_KEY, e.target.checked ? '1' : '0'); } catch (er) {}
+document.getElementById('welcome-dont-show').addEventListener('change', (e) => {
+  saveSettingsAsync({ dontShowWelcome: e.target.checked });
 });
 
-// 부팅 시
-(function bootOnboarding() {
-  let mode = 'expert';
-  try { mode = localStorage.getItem(MODE_KEY) || 'expert'; } catch (e) {}
+// 부팅 시 (설정 파일 비동기 로드)
+(async function bootOnboarding() {
+  const st = await loadSettingsAsync();
+  const mode = st.mode || 'expert';
   document.body.classList.toggle('beginner', mode === 'beginner');
-  showWelcome();
+  // welcome: dontShowWelcome 면 숨김, 아니면 showWelcome
+  if (st.dontShowWelcome === true) {
+    $('welcome').classList.add('hidden');
+  } else {
+    showWelcome();
+  }
   attachTermTooltips();
 })();
+
+
+// ============ 병합 실행 전 확인 다이얼로그 ============
+$('confirm-cancel').addEventListener('click', () => confirmDialog.classList.add('hidden'));
+
+// btn-merge 기존 클릭 핸들러 앞에 확인 다이얼로그 끼워넣기: 기존 핸들러를 runMergeReal 로 이동
+function showConfirmSummary(payload) {
+  const modelNames = payload.models.map((m) => m.name).join(', ');
+  const totalRatio = payload.models.reduce((a, m) => a + m.ratio, 0);
+  const ratioStr = payload.models.map((m) => `${m.name} ${(m.ratio/totalRatio*100).toFixed(0)}%`).join(' · ');
+  return `models        : <b>${modelNames}</b>
+비 율        : ${ratioStr}
+양자화       : <b>${payload.quant}</b>
+업로드 저장소 : <b>${payload.repo}</b>`;
+}

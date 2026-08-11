@@ -305,3 +305,32 @@ body.beginner .panel::before {
   display: none; align-items: center; justify-content: center;
 }
 body.beginner .step-badge { display: flex; }
+
+/* ===== 병합 실행 확인 다이얼로그 ===== */
+.confirm-dialog {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.72);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9500; padding: 16px;
+}
+.confirm-dialog.hidden { display: none; }
+.confirm-card {
+  max-width: 460px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px 28px;
+}
+.confirm-card h2 { margin: 0 0 12px; font-size: 17px; }
+.confirm-summary { color: #c9d1d9; font-size: 13px; line-height: 1.7; margin: 0 0 14px; }
+.confirm-summary b { color: var(--accent-2); }
+.confirm-warning {
+  background: rgba(210,153,34,.1);
+  border: 1px solid var(--warn);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12px; color: var(--warn);
+  margin-bottom: 16px;
+}
+.confirm-btns { display: flex; gap: 10px; }
+.confirm-btns .btn { flex: 1; padding: 10px 14px; }
