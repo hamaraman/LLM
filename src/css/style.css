@@ -135,6 +135,36 @@ body {
 .model-list li:hover { border-color: var(--accent); }
 .model-list li.dragging { opacity: .5; }
 
+/* 출처(source) 배지 — 어느 보관소에서 온 모델인지 표시 */
+.model-list li {
+  display: flex; align-items: center; gap: 8px;
+}
+.model-list li .model-name {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.src-badge {
+  flex: 0 0 auto;
+  font-size: 9px; font-weight: 700; letter-spacing: .04em;
+  padding: 2px 6px; border-radius: 4px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  background: rgba(255,255,255,.03);
+  text-transform: uppercase;
+}
+.src-badge.src-hf        { color: #ffcd3c; border-color: rgba(255,205,60,.4); }
+.src-badge.src-ollama    { color: #6f9;  border-color: rgba(102,255,153,.4); }
+.src-badge.src-lmstudio  { color: #9cf;  border-color: rgba(153,204,255,.4); }
+.src-badge.src-gpt4all   { color: #f9c;  border-color: rgba(255,153,204,.4); }
+.src-badge.src-app       { color: #c9c;  border-color: rgba(204,153,204,.4); }
+.src-badge.src-custom    { color: var(--accent); border-color: rgba(47,129,247,.4); }
+
+/* 인라인 링크 버튼 (빈 목록 안내 등에서 사용) */
+.btn.link {
+  background: none; border: none; color: var(--accent);
+  font-size: inherit; padding: 0; cursor: pointer; text-decoration: underline;
+}
+.btn.link:hover { opacity: .8; }
+
 /* Dropzone */
 .dropzone {
   border: 2px dashed var(--border);

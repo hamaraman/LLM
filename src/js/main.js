@@ -50,20 +50,57 @@ function updateVram(usedMB) {
 }
 
 // ---------- 모델 리스트 ----------
+// 자동 감지 우선: 시스템의 모든 표준 모델 보관소(HF 캐시, Ollama, LM Studio, 앱 폴더 등)를
+// 스캔해서 하나의 리스트로 합침. 사용자가 수동으로 폴더를 고르지 않아도 됨.
+// state.autoscan=true면 scanAll API 사용, false면 scanModels(state.modelsDir) 사용.
+state.autoscan = true;
+
+// 출처	source 코드 → 화면 표시 라벨/클래스
+const SOURCE_LABEL = {
+  app:      { text: '앱',     cls: 'src-app' },
+  hf:       { text: 'HF',     cls: 'src-hf' },
+  ollama:   { text: 'Ollama', cls: 'src-ollama' },
+  lmstudio: { text: 'LM',     cls: 'src-lmstudio' },
+  gpt4all:  { text: 'GPT4All', cls: 'src-gpt4all' },
+  custom:   { text: '사용자',  cls: 'src-custom' },
+};
+
 async function refreshModels() {
   const list = $('model-list');
-  list.innerHTML = '<li class="muted">스캔 중…</li>';
+  list.innerHTML = '<li class="muted">로컬 모델 자동 감지 중…</li>';
   try {
-    const models = await window.eapi.scanModels(state.modelsDir);
+    let models = [];
+    if (state.autoscan) {
+      // 모든 표준 보관소를 스캔해 합침
+      const groups = await window.eapi.scanAll();
+      // 비어있지 않은 그룹만 모아서, 출처(source) 정보와 함께 평탄화
+      const flat = [];
+      groups.forEach((g) => g.models.forEach((m) => flat.push({
+        name: m.name, path: m.path, source: m.source, sourceLabel: SOURCE_LABEL[m.source] || { text: '?', cls: '' },
+      })));
+      models = flat;
+    } else {
+      models = (await window.eapi.scanModels(state.modelsDir)).map((m) => ({
+        ...m, source: 'custom', sourceLabel: SOURCE_LABEL.custom,
+      }));
+    }
     if (!models.length) {
-      list.innerHTML = '<li class="muted">모델이 없습니다</li>';
+      list.innerHTML = state.autoscan
+        ? '<li class="muted">감지된 로컬 모델이 없습니다. <button id="btn-pick-fallback" class="link">폴더 직접 선택</button></li>'
+        : '<li class="muted">이 폴더에 모델이 없습니다</li>';
+      const fb = $('btn-pick-fallback');
+      if (fb) fb.addEventListener('click', () => $('btn-pick-dir').click());
       return;
     }
     list.innerHTML = '';
     models.forEach((m) => {
       const li = document.createElement('li');
       li.draggable = true;
-      li.textContent = m.name;
+      li.title = m.path;
+      const badge = m.sourceLabel
+        ? `<span class="src-badge ${m.sourceLabel.cls}">${m.sourceLabel.text}</span> `
+        : '';
+      li.innerHTML = `${badge}<span class="model-name">${escapeHtml(m.name)}</span>`;
       li.dataset.path = m.path;
       li.addEventListener('dragstart', (e) => {
         e.dataTransfer.setData('text/plain', JSON.stringify(m));
@@ -73,8 +110,14 @@ async function refreshModels() {
       list.appendChild(li);
     });
   } catch (e) {
-    list.innerHTML = `<li class="muted">오류: ${e.message}</li>`;
+    list.innerHTML = `<li class="muted">오류: ${escapeHtml(e.message)}</li>`;
   }
+}
+
+// 모델명/경로에 HTML 특수문자가 있을 때 이스케이프 (XSS 방지)
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) =>
+    ({ '&': '&', '<': '<', '>': '>', '"': '"', "'": '&#39;' }[c]));
 }
 
 // ---------- 슬라이더 ----------
@@ -160,6 +203,7 @@ $('btn-pick-dir').addEventListener('click', async () => {
   const dir = await window.eapi.pickModelDir();
   if (dir) {
     state.modelsDir = dir;
+    state.autoscan = false;   // 수동 선택 시 자동 감지 끄고, 해당 폴더만 스캔
     $('model-dir').value = dir;
     refreshModels();
   }
@@ -236,11 +280,26 @@ window.eapi.onGpuName && window.eapi.onGpuName((name) => {
 });
 
 // ---------- 부팅 ----------
+// 자동 감지 모드(기본): 시스템의 모든 표준 보관소를 스캔.
+// state.modelsDir 기본값은 설정(저장된 커스텀 폴더)에서 가져오고, 없으면 앱 기본 폴더.
 window.eapi.getDefaultModelsDir().then((dir) => {
   state.modelsDir = dir;
   $('model-dir').value = dir;
-  refreshModels();
-});
+  // 설정에 저장된 모델 폴더가 있으면 수동 모드로 시작, 없으면 자동 감지
+  window.eapi.getSettings().then((st) => {
+    if (st && st.modelsDir) {
+      state.modelsDir = st.modelsDir;
+      state.autoscan = false;
+      $('model-dir').value = st.modelsDir;
+    } else {
+      // 자동 감지 — 입력란은 안내 텍스트로 표시
+      $('model-dir').value = '자동 감지 (HF · Ollama · 앱 폴더)';
+      state.autoscan = true;
+    }
+    // 마지막으로 저장된 설정이 있으면 그 폴더로 재개 (autoload)
+    loadSettingsAsync().then(() => refreshModels());
+  });
+}).catch(() => refreshModels());
 logLine('LLM Fusion Studio ready.');
 
 // ============ 온보딩 / 도움말 ============

@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld('eapi', {
   pickModelDir:        ()            => ipcRenderer.invoke('pick-model-dir'),
   getDefaultModelsDir: ()            => ipcRenderer.invoke('get-default-models-dir'),
   scanModels:          (dir)         => ipcRenderer.invoke('scan-models', dir),
+  autodiscoverDirs:    ()            => ipcRenderer.invoke('autodiscover-dirs'),
+  scanAll:             ()            => ipcRenderer.invoke('scan-all'),
 
   // 병합 실행/취소
   startMerge:          (payload)     => ipcRenderer.invoke('start-merge', payload),

@@ -70,6 +70,64 @@ function scanModels(dir) {
   return out;
 }
 
+// ---------- 일반적인 로컬 모델 보관소 자동 감지 ----------
+// 운영체제별 표준 위치 + 환경변수를 검사하여, 실제로 존재하는 후보 디렉토리만 반환.
+// 각 후보는 { label, dir, source } 형태. source는 UI에서 출처 표시에 사용.
+function autodiscoverModelDirs() {
+  const home = app.getPath('home');
+  const candidates = [];
+  const push = (label, dir, source) => {
+    if (dir) candidates.push({ label, dir, source });
+  };
+
+  // 1) 기본(앱 번들 models 디렉토리)
+  push('앱 기본 폴더', DEFAULT_MODELS_DIR, 'app');
+
+  // 2) HuggingFace Hub 캐시
+  const hfHome = process.env.HF_HOME || process.env.HUGGINGFACE_HUB_CACHE ||
+    path.join(home, '.cache', 'huggingface', 'hub');
+  push('HuggingFace 캐시', hfHome, 'hf');
+
+  // 3) Ollama
+  const ollamaHome = process.env.OLLAMA_MODELS || path.join(home, '.ollama', 'models');
+  push('Ollama', ollamaHome, 'ollama');
+
+  // 4) LM Studio
+  push('LM Studio',
+    path.join(home, '.cache', 'lm-studio', 'models'), 'lmstudio');
+
+  // 5) Kairos / GPT4All
+  push('GPT4All',
+    path.join(home, 'AppData', 'Local', 'GPT4All', 'models'), 'gpt4all');
+
+  // 마지막 설정에 저장된 커스텀 디렉토리
+  const st = loadSettings();
+  if (st.modelsDir) push('마지막 사용 폴더', st.modelsDir, 'custom');
+
+  // 존재하는 디렉토리만, 중복 제거
+  const seen = new Set();
+  return candidates.filter((c) => {
+    try {
+      if (!fs.existsSync(c.dir) || !fs.statSync(c.dir).isDirectory()) return false;
+      const key = path.resolve(c.dir);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    } catch (e) { return false; }
+  });
+}
+
+// 모든 자동 감지 디렉토리를 스캔하여 하나의 리스트로 합침.
+// 각 모델에 source/dir 정보를 덧붙여 UI가 출처를 표시할 수 있게 함.
+// 반환: { dir, source, label, models: [{name, path, source}] }
+function scanAllKnownDirs() {
+  const dirs = autodiscoverModelDirs();
+  return dirs.map((c) => {
+    const models = scanModels(c.dir).map((m) => ({ ...m, source: c.source }));
+    return { dir: c.dir, source: c.source, label: c.label, models };
+  });
+}
+
 // ---------- VRAM (nvidia-smi 우선) ----------
 let _hasNvidiaSmi = null;
 function checkNvidiaSmi() {
@@ -174,9 +232,20 @@ function handlePythonLine(line) {
 ipcMain.handle('get-default-models-dir', () => DEFAULT_MODELS_DIR);
 ipcMain.handle('pick-model-dir', async () => {
   const r = await dialog.showOpenDialog(win, { properties: ['openDirectory'] });
-  return r.canceled ? null : r.filePaths[0];
+  if (r.canceled) return null;
+  const dir = r.filePaths[0];
+  // 수동으로 선택한 폴더는 설정에 저장 → 다음 부팅 시 자동으로 재개
+  try {
+    const cur = loadSettings();
+    saveSettings(Object.assign({}, cur, { modelsDir: dir }));
+  } catch (e) { /* 무시 */ }
+  return dir;
 });
 ipcMain.handle('scan-models', (_e, dir) => scanModels(dir));
+// 자동 감지: 존재하는 모든 표준 모델 보관소 후보 반환
+ipcMain.handle('autodiscover-dirs', () => autodiscoverModelDirs());
+// 자동 감지 + 스캔: 모든 보관소를 스캔해 하나의 리스트로 합침
+ipcMain.handle('scan-all', () => scanAllKnownDirs());
 ipcMain.handle('start-merge', (e, payload) => new Promise((resolve, reject) => {
   if (pyProc) return reject(new Error('이미 실행 중'));
   spawnFusion(payload);
