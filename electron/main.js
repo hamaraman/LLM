@@ -210,7 +210,7 @@ function spawnFusion(payload) {
     win.webContents.send('fusion:log', chunk.toString().trim(), 'line-err'));
   pyProc.on('close', (code) => {
     win.webContents.send('fusion:log',
-      code === 0 ? '[backend] 완료 (exit 0)' : `[backend] 종료 (exit ${code})`,
+      code === 0 ? '[backend] 완료 (exit 0)' : `[backend] 종료 (exit ${code})\n💡 해결 방법:\n  1. npm run doctor 로 환경 점검\n  2. 위 로그에서 에러 메시지 확인\n  3. VRAM 부족 여부 확인`,
       code === 0 ? 'line-ok' : 'line-err');
     pyProc = null;
   });

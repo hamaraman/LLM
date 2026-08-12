@@ -10,6 +10,7 @@
   <header class="topbar">
     <div class="brand">⚡ LLM Fusion Studio</div>
     <div class="topbar-right">
+      <button id="btn-glossary" class="btn sm" title="용어 사전">📖 용어 사전</button>
       <span id="gpu-name" class="muted">GPU: 감지 중…</span>
       <span id="app-status" class="status-badge idle">IDLE</span>
     </div>
@@ -48,7 +49,8 @@
       <h2 class="panel-title">Merge Canvas <button class="help-btn" data-help="merge" title="?">?</button></h2>
 
       <div id="dropzone" class="dropzone">
-        <p>모델을 좌측에서 드래그하여 <span class="term" data-term="dropzone">여기에 놓으세요</span></p>
+        <p class="drop-main-hint">⬅ 모델을 좌측에서 <b>드래그</b>하거나 <b>더블클릭</b>하여 추가하세요</p>
+        <p class="drop-sub-hint muted small">최소 2개의 모델이 필요합니다</p>
         <ul id="merge-stack" class="merge-stack"></ul>
       </div>
 
@@ -60,12 +62,13 @@
         <label class="field">
           <span><span class="term" data-term="quant">GGUF 양자화</span> 옵션</span>
           <select id="quant">
-            <option value="q4_k_m">Q4_K_M (권장)</option>
-            <option value="q5_k_m">Q5_K_M</option>
-            <option value="q6_k">Q6_K</option>
-            <option value="q8_0">Q8_0</option>
-            <option value="f16">F16 (비양자화)</option>
+            <option value="q4_k_m">Q4_K_M — 4비트, 크기↓↓ 품질 보통 (가장 많이 사용)</option>
+            <option value="q5_k_m">Q5_K_M — 5비트, 크기↓ 품질 좋음</option>
+            <option value="q6_k">Q6_K — 6비트, 고품질</option>
+            <option value="q8_0">Q8_0 — 8비트, 원본 95%+ 품질, 파일 2배</option>
+            <option value="f16">F16 — 무손실 16비트, 매우 큰 파일 ⚠️</option>
           </select>
+          <span class="quant-info muted small" id="quant-info">💡 Q4_K_M: 7B 모델 기준 약 10~20분 소요</span>
         </label>
 
         <label class="field">
@@ -77,6 +80,7 @@
       <div class="actions">
         <button id="btn-merge" class="btn primary" disabled>병합 & 업로드</button>
         <button id="btn-cancel" class="btn ghost" disabled>취소</button>
+        <span id="merge-hint" class="merge-hint muted"></span>
       </div>
     </section>
 
@@ -84,6 +88,22 @@
     <aside class="panel right">
       <span class="step-badge">3</span>
       <h2 class="panel-title">Status & Terminal <button class="help-btn" data-help="status" title="?">?</button></h2>
+
+      <div id="pipeline-progress" class="progress-block hidden">
+        <div class="progress-head">
+          <span id="progress-label">대기 중</span>
+          <span id="progress-step" class="muted">0/4</span>
+        </div>
+        <div class="progress-track">
+          <div id="progress-fill" class="progress-fill"></div>
+        </div>
+      </div>
+
+      <div id="result-card" class="result-card hidden">
+        <div class="result-header">✅ 작업 완료!</div>
+        <div id="result-body" class="result-body"></div>
+        <button id="result-dismiss" class="btn sm" style="margin-top:8px">확인</button>
+      </div>
 
       <div class="vram-block">
         <div class="vram-head">
@@ -131,7 +151,7 @@
     <div class="confirm-card">
       <h2>🔔 병합 실행 전 확인</h2>
       <p id="confirm-summary" class="confirm-summary"></p>
-      <div class="confirm-warning">⚠️ 이 작업은 그래픽 카드 리소스를 많이 쓰고, 실행 중 취소가 어려울 수 있습니다.</div>
+      <div class="confirm-warning">⚠️ 이 작업은 수십 분이 걸릴 수 있습니다.<br>• 그래픽 카드(GPU) 리소스를 많이 사용합니다<br>• 작업 중 다른 무거운 프로그램은 꺼 주세요<br>• "취소" 버튼으로 중간에 멈출 수 있습니다</div>
       <div class="confirm-btns">
         <button id="confirm-cancel" class="btn ghost">취소</button>
         <button id="confirm-ok" class="btn primary">실행하기</button>
@@ -140,6 +160,41 @@
   </div>
 
   <div id="bubble" class="bubble hidden"></div>
+
+  <!-- 용어 사전 오버레이 -->
+  <div id="glossary" class="glossary-overlay hidden">
+    <div class="glossary-card">
+      <div class="glossary-header">
+        <h2>📖 용어 사전</h2>
+        <button id="glossary-close" class="btn sm">닫기</button>
+      </div>
+      <div class="glossary-body">
+        <dl class="glossary-list">
+          <dt>병합 (Merge)</dt>
+          <dd>서로 다른 AI 모델의 가중치를 섞어 하나의 새 모델을 만드는 작업입니다. 마치 두 가지 색의 물감을 섞는 것과 비슷해요.</dd>
+          <dt>양자화 (Quantization)</dt>
+          <dd>모델의 크기를 줄이는 압축 기술입니다. 32비트 → 4비트로 줄이면 파일이 8배 작아지지만, 약간의 품질 손실이 있어요.</dd>
+          <dt>GGUF</dt>
+          <dd>llama.cpp에서 사용하는 모델 파일 형식입니다. 양자화된 모델을 저장하는 표준 포맷이에요.</dd>
+          <dt>VRAM</dt>
+          <dd>그래픽 카드(GPU)의 전용 메모리입니다. 모델이 클수록 더 많은 VRAM이 필요하고, 부족하면 작업이 매우 느려지거나 실패해요.</dd>
+          <dt>HuggingFace</dt>
+          <dd>AI 모델을 공유하는 플랫폼입니다. GitHub가 코드 저장소라면, HuggingFace는 AI 모델 저장소예요.</dd>
+          <dt>토큰 (API Token)</dt>
+          <dd>HuggingFace에 로그인하는 대신 사용하는 "열쇠"입니다. 모델을 업로드하려면 write(쓰기) 권한이 있는 토큰이 필요해요.</dd>
+          <dt>가중치 (Weights)</dt>
+          <dd>AI 모델이 학습한 결과물입니다. 숫자들의 집합으로, .safetensors나 .bin 파일에 저장돼요.</dd>
+          <dt>Q4_K_M / Q5_K_M 등</dt>
+          <dd>양자화 수준을 나타내는 코드명입니다. 숫자가 작을수록 더 많이 압축 → 파일 작고 빠르지만 품질↓. 숫자가 클수록 품질↑ 파일 커짐.</dd>
+          <dt>mergekit</dt>
+          <dd>AI 모델 병합을 자동으로 해 주는 Python 라이브러리입니다. 이 앱이 내부적으로 사용해요.</dd>
+          <dt>llama.cpp</dt>
+          <dd>AI 모델을 CPU/GPU에서 효율적으로 실행하기 위한 도구입니다. 양자화(크기 줄이기)를 담당해요.</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+
   <script src="js/main.js"></script>
 </body>
 </html>

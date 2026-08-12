@@ -26,4 +26,10 @@ contextBridge.exposeInMainWorld('eapi', {
   onVram:  (cb) => ipcRenderer.on('fusion:vram', (_e, usedMB)      => cb(usedMB)),
   onVramLimit: (cb) => ipcRenderer.on('fusion:vram-limit', (_e, totalMB) => cb(totalMB)),
   onGpuName: (cb) => ipcRenderer.on('fusion:gpu', (_e, name)         => cb && cb(name)),
+
+  // 리스너 정리
+  removeAllListeners: (channel) => {
+    const allowed = ['fusion:log', 'fusion:vram', 'fusion:vram-limit', 'fusion:gpu'];
+    if (allowed.includes(channel)) ipcRenderer.removeAllListeners(channel);
+  },
 });

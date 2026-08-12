@@ -364,3 +364,133 @@ body.beginner .step-badge { display: flex; }
 }
 .confirm-btns { display: flex; gap: 10px; }
 .confirm-btns .btn { flex: 1; padding: 10px 14px; }
+
+/* ===== Pipeline Progress ===== */
+.progress-block { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.progress-block.hidden { display: none; }
+.progress-head { display: flex; justify-content: space-between; font-size: 12px; }
+.progress-track {
+  height: 8px; border-radius: 4px;
+  background: var(--bg-input); border: 1px solid var(--border);
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  transition: width .4s ease;
+  border-radius: 4px;
+}
+
+/* ===== Merge hint ===== */
+.merge-hint {
+  display: block; font-size: 11px; color: var(--warn);
+  margin-top: 4px; min-height: 16px;
+}
+
+/* ===== Glossary overlay ===== */
+.glossary-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.72);
+  backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9200; padding: 16px;
+}
+.glossary-overlay.hidden { display: none; }
+.glossary-card {
+  max-width: 580px; width: 100%;
+  max-height: 80vh;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px 28px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.5);
+  display: flex; flex-direction: column;
+}
+.glossary-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 16px;
+}
+.glossary-header h2 { margin: 0; font-size: 17px; }
+.glossary-body {
+  overflow-y: auto; flex: 1;
+}
+.glossary-list {
+  margin: 0; padding: 0;
+}
+.glossary-list dt {
+  font-weight: 700; color: var(--accent-2);
+  margin-top: 14px; font-size: 13px;
+}
+.glossary-list dt:first-child { margin-top: 0; }
+.glossary-list dd {
+  margin: 4px 0 0 0; font-size: 12px;
+  color: #c9d1d9; line-height: 1.6;
+}
+
+/* ===== Result card (completion) ===== */
+.result-card {
+  background: rgba(63,185,80,.08);
+  border: 1px solid var(--accent-2);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+.result-card.hidden { display: none; }
+.result-header {
+  font-size: 14px; font-weight: 700;
+  color: var(--accent-2);
+  margin-bottom: 8px;
+}
+.result-body {
+  font-size: 12px; line-height: 1.7;
+  color: #c9d1d9;
+}
+.result-body b { color: var(--accent-2); }
+
+/* ===== Enhanced dropzone hints ===== */
+.drop-main-hint {
+  margin: 0; color: var(--muted); font-size: 13px; text-align: center;
+  padding: 8px 0;
+}
+.drop-main-hint b { color: var(--accent); }
+.drop-sub-hint {
+  margin: 0; text-align: center;
+}
+
+/* ===== Beginner pulse animation ===== */
+body.beginner .panel.left {
+  animation: beginner-pulse 2s ease-in-out 3;
+}
+@keyframes beginner-pulse {
+  0%, 100% { border-color: var(--border); }
+  50% { border-color: var(--accent); box-shadow: inset 0 0 12px rgba(47,129,247,.08); }
+}
+
+/* ===== Model card add hint for beginner mode ===== */
+body.beginner .model-list li::after {
+  content: '더블클릭 추가';
+  font-size: 9px; color: var(--muted);
+  opacity: 0; transition: opacity .15s;
+  margin-left: auto;
+}
+body.beginner .model-list li:hover::after { opacity: 1; }
+
+/* ===== Quant info ===== */
+.quant-info {
+  display: block; margin-top: 4px;
+}
+
+/* ===== Status badge pulse when running ===== */
+.status-badge.running {
+  animation: status-pulse 1.5s ease-in-out infinite;
+}
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .5; }
+}
+
+/* ===== Topbar glossary button ===== */
+#btn-glossary {
+  font-size: 11px;
+  padding: 4px 10px;
+}
